@@ -1,0 +1,64 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+entity Emergencia is
+   Port (
+        alarm1: in std_logic;
+        start: in std_logic;
+        clk: in std_logic;
+        alarma: out std_logic_vector(13 downto 0);
+        alarma_ME : out std_logic
+   );
+end Emergencia;
+architecture Behavioral of Emergencia is
+signal aux_al : std_logic := '0';--Señal usada para llevar el control del tiempo del contador para realizar el parpadeo.
+signal al : integer range 0 to 50000000:=0;--Señal usada para llevar el control del tiempo del contador para realizar el parpadeo.
+signal a : std_logic := '0';-- Señal usada para almacenar el valor de alarma.
+begin
+Emergencia : PROCESS(clk)
+    begin
+        if clk='1' and clk'event then
+            if(alarm1 = '1') then --Comprueba que este activo el boton de alarma
+              alarma_ME <= '1';
+              a <= '1';
+           end if;
+            if(alarm1 = '0' and start = '1') then -- El boton de alarma no se ha activado o se ha desactivado y hemos presionado el boton de start para iniciar nuevamente el ascensor
+                alarma_ME <= '0';
+                a <= '0';
+            end if;  
+           
+            
+             if(a='1') then -- Codigo para que los leds asociados a la alarma parpadeen cuando se active la alarma
+                 if(aux_al = '0') then
+                    if(al>=0 and al<5000000) then --Toma dos pulsos, porque uno es debido a la actualizacion del valor.
+                        al<=al+1; 
+                         for I in 0 to 13 loop     
+                         alarma(I) <= '1';
+                         end loop;                   
+                    end if; 
+                    if(al=5000000) then
+                        al<=0; 
+                        aux_al<='1';
+                    end if;
+                 end if;
+                if(aux_al='1') then
+                    if(al>=0 and al<5000000) then 
+                        al<=al+1; 
+                         for I in 0 to 13 loop     
+                         alarma(I) <= '0';
+                         end loop;                    
+                    end if; 
+                    if(al=5000000) then
+                        al<=0; 
+                        aux_al<='0';    
+                    end if;
+                end if;
+             else 
+                for I in 0 to 13 loop     
+                alarma(I) <= '0';
+                end loop;              
+            end if;
+         
+         end if; 
+end process;
+
+end Behavioral;
