@@ -1,0 +1,503 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.STD_LOGIC_ARITH.ALL;
+use IEEE.STD_LOGIC_UNSIGNED.ALL;
+entity MaqEstados is
+    generic(
+    t_ac: natural := 10;--Tiempo que tarda la puerta en abrir o cerrar
+    t_sb: natural := 15--Tiempo que tarda el ascensor en subir o bajar un piso
+    );
+    port(
+    boton	:IN STD_LOGIC_VECTOR(3 DOWNTO 0); --Botones en cada piso
+    clk,start	:IN STD_LOGIC; -- Boton de arranque   
+    presencia	:IN STD_LOGIC; --Sensores 
+    alarm3	:IN STD_LOGIC; --Botón de alarma
+    abrir_m	:IN STD_LOGIC; --boton apertura y cierre
+    puerta_a,puerta_c,motor_subir,motor_bajar	:OUT STD_LOGIC; --Motor y puerta 
+    display1,display2,display3,display4 :OUT STD_LOGIC_VECTOR(7 DOWNTO 0)    
+    );
+end MaqEstados;
+architecture Behavioral of MaqEstados is
+--Definicion de los componentes por los que esta comformado la maquina de estado.
+component Pantalla is 
+    port(
+  estado : in natural;
+  clk : in std_logic;
+  cerrado1: in std_logic;
+  abierto1: in std_logic;
+  presencia1 : in std_logic;
+  abrir_m1 : in std_logic;
+  puerta_aaux1: in std_logic; --motor de abrir puertas
+  puerta_caux1: in std_logic; --motor de cerrar puertas
+  motor_saux : in std_logic;
+  motor_baux : in std_logic;
+  piso : in std_logic_vector(3 downto 0);
+  display1 : out std_logic_vector(7 downto 0);
+  display2 : out std_logic_vector(7 downto 0);
+  display3 : out std_logic_vector(7 downto 0);
+  display4 : out std_logic_vector(7 downto 0)
+    );
+ end component;
+ component Botones is
+    port(
+        clk : in std_logic;
+        alarm3: in std_logic;
+        boton: in std_logic_vector(3 downto 0);
+        bot_ant: in std_logic_vector(3 downto 0);
+        piso: in std_logic_vector(3 downto 0);
+        presente : in natural;
+        bot11,bot12,bot13,bot14: inout std_logic_vector(3 downto 0);
+        bot1,bot2,bot3,bot4: out std_logic_vector(3 downto 0);
+        bandera: out std_logic
+    );
+end component;
+--Maquina de Estados
+TYPE estados IS (inicial,arranque1,parado,cerrando,cerrando1,cerrando2,
+cerrando3,cerrando4,subir1,subir2, subir3,subir4,bajar1,bajar2,bajar3,bajar4,abriendo);
+SIGNAL presente: estados:=inicial; --Almacena el estado actual del ascensor.
+TYPE estados2 IS (subiendo,bajando); 
+SIGNAL direccion: estados2:=subiendo;--Almacena la direccion del ascensor
+SIGNAL piso : std_logic_vector (3 DOWNTO 0):="0001"; --Almacena el valor del piso en el que se encuentra el ascensor
+SIGNAL abierto: std_logic:='1';--Define si el ascensor esta totalmente abierto.
+SIGNAL cerrado: std_logic:='0';--Define si el ascensor esta totalmente cerrado.
+SIGNAL bot,bot1,bot2,bot3,bot4 : std_logic_vector(3 downto 0):="0000"; --Señal auxiliar para guardar el valor de los botones del ascensor.
+SIGNAL bot11,bot12,bot13,bot14 : std_logic_vector(3 downto 0):="0000"; --Señal auxiliar para guardar el valor de los botones del ascensor.
+SIGNAL bot_ant : std_logic_vector(3 downto 0):="0001";--Almacena el valor del ultimo boton presionado.
+SIGNAL bandera : std_logic:='0';  --Se usa para iniciar el ascensor.
+--signal rp : integer range 0 to 50000:=0; 
+--signal al : integer range 0 to 50000000:=0;
+--signal aux_al: std_logic := '0';
+signal contador,contador2: integer range 0 to 2**26 - 1 := 0;
+signal tiempo: integer range 0 to 60 := 0; -- En segundos, Se usa para llevar el tiempo de abrir y cerrar las puertas
+signal puerta_aaux,puerta_caux: std_logic:='0';--Variables auxiliares para definir si la puerta se esta abriendo o cerrando
+--signal abierto_aux,abierto_aux2: std_logic:='0';
+signal motor_saux,motor_baux: std_logic:='0';--Variables auxiliares para saber si el ascensor sube o baja
+--signal flag,flag2: natural:=0;
+signal display_est: natural:=1;--Variable usada para pasar el estado actual a pantalla y botones
+constant second: integer:= 25000000 ; --Valor de un segundo
+-- Reloj 1
+signal  r_princ,seg	: std_logic; 
+begin
+-- Estados
+NEXT_STATE: PROCESS(clk)
+    begin
+    if clk='1' and clk'event then     
+    CASE presente IS
+ --Comprueba en funcion del estado en el que estemos una serie de condiciones que permitiran o no pasar al estado siguiente.
+            WHEN inicial=>
+                   if start = '1' then 
+                        presente<=arranque1; display_est <= 2;
+                                          
+                   end if;
+            WHEN arranque1=>
+                    if piso= "0001" THEN
+                        presente <= abriendo;  display_est <= 16;                      
+                    end if; 
+            WHEN parado =>
+                      abierto<='0';
+                      cerrado<='0';
+                    if abrir_m = '0' then--Comprueba que el boton de abrir no este pulsado
+                        if(BANDERA = '1') then--Proceso de puesta en marcha del ascensor
+                          presente<=cerrando; display_est <= 17;
+                          end if;
+ --Comprueba el valor de cada piso y en funcion de ello envia al estado cerrando del piso correspondiente.
+                        if ((BOT1/="0000") AND (BOT1/= PISO)) then
+                          presente <= cerrando1; display_est <= 4;
+                          end if;
+                        if((BOT2/="0000") AND (BOT2/= PISO)) then
+                          presente <= cerrando2; display_est <= 5;
+                          end if;
+                        if ((BOT3/="0000") AND (BOT3/= PISO)) then
+                          presente <= cerrando3; display_est <= 6;
+                          end if;
+                        if((BOT4/="0000") AND (BOT4/= PISO)) then
+                          presente <= cerrando4; display_est <= 7;
+                          end if; 
+                    end if;
+            WHEN cerrando=>  --Para iniciar el ascensor    
+                    if bot12/="0000" or bot13/="0000" or bot14/="0000" then
+                        presente<=parado; display_est <= 3;
+                    end if;                 
+            WHEN  cerrando1 =>
+            --Comprueba que no haya presencia ni este pisado el boton de abrir y empieza a contar el tiempo mientras la puerta se cierra.
+                    if presencia = '0' and abrir_m = '0' then
+                            contador<= contador + 1;
+                            contador2 <= contador2 + 1;
+					       	if contador >= second then 
+							     tiempo<=tiempo + 1; 
+							     contador<=0;
+		      		      	end if;
+                            if tiempo = t_ac then--Al pasar 10s se cierran las puertas
+					                cerrado <= '1';
+					                tiempo <= 0;
+                                    puerta_caux<='0';puerta_aaux<='0';
+                            end if;
+					else--En caso de tener presencia o estar pulsado el boton de abrir, volvera a abrir las puertas del ascensor lo que llevasen cerradas
+					       if contador2 > 0 then 
+					           contador2<= contador2 - 1;
+					       end if;				       					       
+				    	   if contador2 = 0 then
+					               tiempo <= 0;
+                                   puerta_caux<='0';puerta_aaux<='0';
+                            else
+                                   puerta_caux<='0';puerta_aaux <= '1';
+ 					       end if;
+                    end if;       
+                     bot_ant<="0001";
+                     if cerrado = '1' THEN--Comprueba el piso en el que estas con el bot1 a ver si el ascensor debe subir o bajar y pasarlo asi al estado correcto.
+                      motor_baux<='1';motor_saux<='1';
+                             if(bot1 > piso)  and piso/="0000" then 
+                                presente <= subir1; display_est <= 8;
+                            elsif(bot1 < piso) and piso/="0000" then 
+                                presente <= bajar1; display_est <= 12;
+                            elsif piso = "0000" then --  ----------------------------------------------------------------------QWERTYUIOPQWERTYUIOQWERTYUIOP
+                                presente <= bajar1; display_est <= 12;
+                            end if;
+                     end if;
+                    if cerrado='0' and presencia/='1' and abrir_m /= '1' then 
+                            puerta_caux<= '1';
+                    else
+                            puerta_caux<= '0';                  
+                    end if;
+                WHEN  cerrando2 =>--Tiene el mismo funcionamiento que el cerrando1 pero para el piso 2.
+                     if alarm3='1' then 
+                     presente<= cerrando1; display_est <= 4;
+                     end if;
+                     if presencia = '0' and abrir_m = '0' then
+                            contador<= contador + 1;
+                            contador2 <= contador2 + 1;
+					       	if contador >= second then 
+							     tiempo<=tiempo + 1;
+							     contador<=0;
+		      		      	end if;
+                           if tiempo = t_ac then
+					                cerrado <= '1';
+					                tiempo <= 0;
+                                    puerta_caux<='0';puerta_aaux<='0';
+                            end if;
+                           else
+                                   if contador2 > 0 then 
+					                   contador2<= contador2 - 1;
+					               end if;				       					       
+				    	           if contador2 = 0 then
+                                       tiempo <= 0;
+                                       puerta_caux<='0'; puerta_aaux<='0';
+                                    else
+                                       puerta_caux<='0';
+                                       puerta_aaux <= '1';
+					               end if;
+					end if;       	
+                     bot_ant<="0010";
+                     if cerrado = '1' THEN
+                             motor_baux<='1';motor_saux<='1';
+                            if(bot2 > piso) and alarm3='0' then
+                                    presente <= subir2;  display_est <= 9;
+                            elsif(bot2 < piso)and alarm3='0' then
+                                    presente <= bajar2; display_est <= 13;
+                            end if;
+                     end if;
+                    if cerrado='0' and presencia/='1' and abrir_m /= '1'then 
+                            puerta_caux<= '1';
+                    else
+                             puerta_caux<= '0';                  
+                    end if;
+             WHEN  cerrando3 =>--Tiene el mismo funcionamiento que el cerrando1 pero para el piso 3.
+                     if alarm3='1' then 
+                                     presente<= cerrando1; display_est <= 4;
+                                     end if;
+                     if presencia = '0' and abrir_m = '0' then
+                            contador<= contador + 1;
+                            contador2 <= contador2 + 1;
+					       	if contador >= second then 
+							     tiempo<=tiempo + 1;
+							     contador<=0;
+		      		      	end if;
+				    	   if tiempo = t_ac then
+					                cerrado <= '1';
+					                tiempo <= 0;
+                                    puerta_caux<='0';
+                                    puerta_aaux<='0';
+					       end if;
+					else
+					       if contador2 > 0 then 
+					           contador2<= contador2 - 1;
+					       end if;				       					       
+				    	   if contador2 = 0 then
+					               tiempo <= 0;
+                                   puerta_caux<='0';
+                                   puerta_aaux<='0';
+                           else
+                                   puerta_caux<='0';
+                                   puerta_aaux <= '1';
+					       end if;
+					end if;       					
+                     bot_ant<="0100";
+                     if cerrado = '1' THEN
+                      motor_baux<='1';
+                      motor_saux<='1';
+                        if(bot3 > piso) then
+                            presente <= subir3;  display_est <= 10;
+                        elsif(bot3 < piso) then
+                            presente <= bajar3; display_est <= 14;
+                        end if;
+                     end if;
+                        if cerrado='0' and presencia/='1' and abrir_m /= '1' then 
+                     puerta_caux<= '1';
+                 else
+                     puerta_caux<= '0';                  
+                 end if;
+                 WHEN  cerrando4 =>--Tiene el mismo funcionamiento que el cerrando1 pero para el piso 4.
+                    if alarm3='1' then 
+                            presente<= cerrando1; display_est <= 4;
+                    end if;
+                    if presencia = '0' and abrir_m = '0' then
+                            contador<= contador + 1;
+                            contador2 <= contador2 + 1;
+					       	if contador >= second then 
+							     tiempo<=tiempo + 1;
+							     contador<=0;
+		      		      	end if;
+				    	   if tiempo = t_ac then
+					                cerrado <= '1';
+					                tiempo <= 0;
+                                    puerta_caux<='0';
+                                    puerta_aaux<='0';
+					       end if;
+					else
+					       if contador2 > 0 then 
+					           contador2<= contador2 - 1;
+					       end if;				       					       
+				    	   if contador2 = 0 then
+					               tiempo <= 0;
+                                   puerta_caux<='0';
+                                   puerta_aaux<='0';
+                           else
+                                   puerta_caux<='0';
+                                   puerta_aaux <= '1';
+					       end if;
+					end if;       	   
+                     bot_ant<="1000";
+                     if cerrado = '1' THEN
+                        motor_saux<='1';
+                        motor_baux<='1';
+                        if(bot4 > piso) then
+                            presente <= subir4;  display_est <= 11;
+                        elsif(bot4 < piso) then
+                            presente <= bajar4; display_est <= 15;
+                        end if;
+                     end if;                     
+                 if cerrado='0' and presencia/='1' and abrir_m /= '1' then 
+                     puerta_caux<= '1';
+                 else
+                     puerta_caux<= '0';                  
+                 end if;  
+                 WHEN   subir1|bajar1  =>
+                     puerta_aaux <= '0';
+--Entra en un contador que lleva el tiempo que tarda en subir o bajar cada piso y una vez pasa el tiempo comprueba en que piso estaba y lo actualiza.
+                     contador<= contador + 1;                        
+						if contador >= second then 
+							tiempo<=tiempo + 1;
+							contador<=0;
+		      			end if;
+				    	if tiempo = t_sb then
+					       if(piso = "1000") then 
+					           piso <="0100";
+					       elsif(piso = "0100") then 
+					           piso <="0010";
+					       elsif(piso = "0010") then 
+					           piso <="0001"; 
+                           end if;
+                           tiempo <= 0;
+					    end if;
+                        IF ((BOT1 = PISO) ) THEN--Comprueba que el boton1 sea igual al piso y cuando esto ocuure se pasa al estado abriendo.
+                          presente <= abriendo; display_est <=16;
+                        end if;
+                 WHEN   subir2|bajar2  =>--Funciona de la misma manera que subir y bajar 1 solo que para el piso 2.
+                 puerta_aaux <= '0';
+                    if alarm3='1' then
+                       presente<=bajar1; display_est <= 12;--si se pulsa el boton de alarma se baja al piso 1
+                    end if;
+                            contador<= contador + 1;
+						if contador >= second then 
+							tiempo<=tiempo + 1;
+							contador<=0;
+		      			end if;
+				    	if tiempo = t_sb then
+					       if(piso = "1000") then 
+					           piso <="0100";
+					       elsif(piso = "0100") then 
+					           piso <="0010";
+					       elsif(piso = "0001") then 
+					           piso <="0010";
+                           end if;
+                           tiempo <= 0;
+					    end if;
+                    IF ((BOT2 = PISO) ) THEN
+                        presente <= abriendo; display_est <=16;
+                    end if; 
+                 WHEN   subir3|bajar3 =>--Funciona de la misma manera que subir y bajar 1 solo que para el piso 3.
+                 puerta_aaux <= '0';
+                    if alarm3='1' then
+                        presente<=bajar1; display_est <= 12;
+                    end if;
+                    contador<= contador + 1;       
+						if contador >= second then 
+							tiempo<=tiempo + 1;
+							contador<=0;
+		      			end if;
+				    	if tiempo = t_sb then
+					       if(piso = "1000") then 
+					           piso <="0100";
+					       elsif(piso = "0010") then 
+					           piso <="0100"; 
+					       elsif(piso = "0001") then 
+					           piso <="0010";
+                           end if;
+                           tiempo <= 0;
+					    end if;
+                    IF ((BOT3 = PISO)) THEN 
+                        presente <= abriendo; display_est <= 16;
+                    end if;
+                 WHEN   subir4|bajar4  =>--Funciona de la misma manera que subir y bajar 1 solo que para el piso 4.
+                    puerta_aaux <= '0';
+                     if alarm3='1' then
+                        presente<=bajar1; display_est <= 12;
+                     end if;
+                         contador<= contador + 1;
+						if contador >= second then 
+							tiempo<=tiempo + 1;
+							contador<=0;
+		      			end if;
+				    	if tiempo = t_sb then
+					       if(piso = "0001") then 
+					           piso <="0010";
+					       elsif(piso = "0010") then 
+					           piso <="0100";
+					       elsif(piso = "0100") then 
+					           piso <="1000";
+                           end if;
+                           tiempo <= 0;
+					    end if;
+                    IF ((BOT4 = PISO)) THEN
+                          presente <= abriendo; display_est <=16;
+                    end if;
+                WHEN abriendo => 
+ --Este contador controla el tiempo que tarda la puerta en abrirse, una vez se ha alcanzado el tiempo establecido la puerta abierta se pone a 1.
+                             contador<= contador + 1;
+                             motor_saux<='0';
+                             motor_baux<='0';
+                             puerta_caux<='0';
+							if contador >= second then 
+								tiempo<=tiempo + 1;
+								contador<=0;
+					            end if;
+					 if tiempo = t_ac then
+					   abierto <= '1';
+					     puerta_caux<='0';
+					   tiempo <= 0;
+					end if;
+                    IF abierto ='1' then
+                        puerta_aaux <= '0';
+                        presente <= parado; display_est <= 3;
+                    else
+                        puerta_aaux <= '1';
+                    end if;              
+        END CASE;
+    end if;
+END PROCESS;
+-- Proceso que se encarga de asignar el valor de las Salidas
+Salidas: PROCESS(clk,presente,presencia,abrir_m,abierto,cerrado,tiempo,contador,contador2) --
+    BEGIN
+if clk='1' and clk'event then
+        CASE presente IS
+            WHEN inicial | arranque1 | parado =>--Para estos estados las salidas siempre valdran 0.
+               motor_subir <='0';
+               motor_bajar <='0';
+               puerta_a <= '0';
+               puerta_c <= '0';
+            WHEN cerrando1|cerrando2|cerrando3|cerrando4=>--En este caso se actualizan los valores de las salidas puerta abriendo y puerta cerrando
+               motor_subir<='0';
+               motor_bajar<='0';
+               if presencia = '1' or abrir_m = '1' then 
+                    if contador2 = 0 then  -- Cuando ya se abierto habiendo habido una presencia
+                        puerta_a <= '0';
+                        puerta_c <= '0';
+                    else -- Se sigue abriendo porque hay presencia y no se ha abierto del todo
+                        puerta_a <= '1';  
+                        puerta_c <= '0';
+                    end if;
+               else
+                     if(cerrado = '1') then
+                                puerta_a <= '0';
+                                puerta_c <= '0';
+                          else
+                                puerta_a <= '0';
+                                puerta_c <= '1';                              
+                     end if;
+               end if;              
+            WHEN bajar1|bajar2|bajar3|bajar4 =>--Se cambian los valores de las salidas motor subir y bajar.
+                motor_subir <='0';
+                motor_bajar <='1';
+                puerta_a<='0'; 
+                puerta_c<='0';                
+            WHEN subir1|subir2|subir3|subir4 =>--Se cambian los valores de las salidas motor subir y bajar.
+                motor_subir <='1';
+                motor_bajar <='0';
+                puerta_a<='0'; 
+                puerta_c<='0';        
+            WHEN abriendo =>--En este caso se actualizan los valores de las salidas puerta abriendo y puerta cerrando
+                    motor_subir<='0'; 
+                    motor_bajar<='0';
+                if(abierto = '1') then
+                    puerta_a<='0'; 
+                    puerta_c<='0';
+                else
+                    puerta_a<='1';
+                    puerta_c<='0';
+                end if;
+                WHEN others =>--Por si ocurriese algun fallo las variables de salida se ponen todas a 0
+                motor_subir<='0'; 
+                motor_bajar<='0';
+                puerta_a<='0'; 
+                puerta_c<='0';
+    END CASE;
+    end if;  
+END PROCESS;
+--Instanciacion de los componentes que forman parte de la maquina de estados.
+I_Botones: Botones
+    port map(
+    clk => clk,
+    presente => display_est,
+    alarm3 => alarm3,
+    boton => boton,
+    bot_ant => bot_ant,
+    piso => piso,
+    bot11 => bot11,
+    bot12 => bot12,
+    bot13 => bot13,
+    bot14=> bot14,
+    bandera => bandera,
+    bot1 => bot1,
+    bot2 => bot2,
+    bot3 => bot3,
+    bot4=> bot4
+    );
+I_Pantalla : Pantalla
+    port map(
+    estado => display_est,
+    clk => clk,
+    cerrado1 => cerrado,
+    abierto1 => abierto,
+    presencia1 => presencia,
+    abrir_m1 => abrir_m,
+    puerta_aaux1 => puerta_aaux,
+    puerta_caux1 => puerta_caux,
+    motor_baux => motor_baux,
+    motor_saux => motor_saux,
+    piso => piso,
+    display1 => display1,
+    display2 => display2,
+    display3 => display3,
+    display4 => display4
+    );   
+end Behavioral;
