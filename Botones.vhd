@@ -1,3 +1,4 @@
+--codigo de Botones
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 entity Botones is
@@ -23,7 +24,7 @@ ControlBotones : PROCESS(clk)
 --Nuevamente los estados se sustituyen por numeros para facilitar el funcionamiento del codigo.
 --Los estados toman el numero correspondiente con su puesto en la declaracion realizada en la Maquina de Estados por ejemplo si parado es el tercero en la lista tomara el numero 3.
          if (presente /= 1 and presente /=2) and alarm3='0' then
---Se comprueba el valor que se le da a la entrada boton y en funcion de ello se almacena su valor en una señal auxiliar correspondiente a dicho piso.
+--Se comprueba el valor que se le da a la entrada boton y en funcion de ello se almacena su valor en una seÃ±al auxiliar correspondiente a dicho piso.
                     if(boton="0001") then
                         bot11<=boton;
                     end if;
@@ -37,11 +38,11 @@ ControlBotones : PROCESS(clk)
                         bot14<=boton;
                     end if;
             end if;
-            if (presente = 1) then --Cuando estamos en el estado inicial colocamos todas las señales a 0.
+            if (presente = 1) then --Cuando estamos en el estado inicial colocamos todas las seÃ±ales a 0.
                     bot1<="0000";   bot2<="0000";    bot3<="0000";    bot4<="0000";
                     bot11<="0000";    bot12<="0000"; bot13<="0000";   bot14<="0000";
             end if;           
-             if (presente = 3) then --Cuando esta parado comprueba el valor guardado en la señal bot ant para asi borrar las señales correspondientes al boton de dicho piso y evitar que se generen fallos.                        
+             if (presente = 3) then --Cuando esta parado comprueba el valor guardado en la seÃ±al bot ant para asi borrar las seÃ±ales correspondientes al boton de dicho piso y evitar que se generen fallos.                        
                     if(bot_ant="0001") then
                         bandera<='0'; 
                         bot1<="0000";    bot11<="0000";                
