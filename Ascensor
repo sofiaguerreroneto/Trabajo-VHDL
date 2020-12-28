@@ -1,0 +1,119 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.numeric_std.all;
+entity TOP is
+port(
+          boton	:IN STD_LOGIC_VECTOR(3 DOWNTO 0); --Botones en cada piso  
+          clk,start	:IN STD_LOGIC; -- Boton de arranque
+          presencia	:IN STD_LOGIC; --Sensores  ,abierto,cerrado
+          alarm	:IN STD_LOGIC; --Botón de alarma
+          abrir_m	:IN STD_LOGIC; --Apertura y cierre
+          puerta_a,puerta_c,motor_subir,motor_bajar	:OUT STD_LOGIC; --Motor y puerta 
+          alarma_final	:OUT STD_LOGIC_VECTOR (13 DOWNTO 0); -- Luz emergencia 
+          salida_final : out  STD_LOGIC_VECTOR (7 downto 0);
+          control_salida : out  STD_LOGIC_VECTOR (3 downto 0)
+    );
+end TOP;
+architecture Behavioral of TOP is
+-- Definicion de los componentes del proyecto
+--Componente encargado de filtrar las entradas compuesto por un antirrebotes y un flanco
+component filtro is
+     generic(n: integer range 0 to 2**5-1 := 8);
+    port(
+          start : in std_logic;
+          alarm2 : in std_logic;
+          entrada : in std_logic_vector(3 downto 0);
+		  clk: in std_logic;
+		  salida: out std_logic_vector(3 downto 0);
+		  salida1 : out std_logic;
+		  salida3 : out std_logic
+    );
+end component;
+--Componente encargado de definir el estado del ascensor segun las entradas y señales
+component MaqEstados is 
+port(
+        boton	:IN STD_LOGIC_VECTOR(3 DOWNTO 0); --Botones en cada piso
+        clk,start	:IN STD_LOGIC; -- Boton de arranque   
+        presencia	:IN STD_LOGIC; --Sensores
+        alarm3	:IN STD_LOGIC; --Botón de alarma
+        abrir_m	:IN STD_LOGIC; --Apertura y cierre
+        puerta_a,puerta_c,motor_subir,motor_bajar	:OUT STD_LOGIC; --Motor y puerta 
+        display1,display2,display3,display4 :OUT STD_LOGIC_VECTOR(7 DOWNTO 0)
+);
+end component;
+--Componente encargado de enviar los caracteres que tienen que ser representados en los displays de 7 segmentos
+component Display is 
+    port(
+		display1 : IN std_logic_vector(7 downto 0);
+		display2 : IN std_logic_vector(7 downto 0);
+		display3 : IN std_logic_vector(7 downto 0);
+		display4 : IN std_logic_vector(7 downto 0);
+		clk : IN std_logic;          
+		pantalla : OUT std_logic_vector(7 downto 0);
+		control : OUT std_logic_vector(3 downto 0)
+    );
+end component;
+-- Componente encargado de tratar la activacion de la alarma
+component Emergencia
+port(
+		clk: in std_logic;
+		alarm1: in std_logic;
+		start: in std_logic;
+		alarma: out std_logic_vector(13 downto 0);
+		alarma_ME : out std_logic
+	);
+end component;
+--Declaracion de señales auxiliares para comunicar los componentes entre ellos
+signal aux: std_logic_vector(3 downto 0);--señal que sale del filtro correspondiente a los botones del ascensor
+signal aux1: std_logic;-- señal que sale del filtro correspondiente al start 
+signal aux3: std_logic;-- señal que sale del filtro correspondiente al alarm1
+signal aux5: std_logic;--señal que sale del filtro correspondiente al alarma_ME
+signal display11,display22,display33,display44: std_logic_vector(7 downto 0);
+begin   
+I_filtro: filtro --Instaciacion del filtro
+	generic map(n=>4)  --Generador
+	port map(
+        start => start,
+        alarm2  => alarm,
+        entrada => boton,
+        clk => clk,
+        salida =>aux,
+        salida1 => aux1,
+        salida3 =>aux3			  
+	);
+I_Emer : Emergencia --Instanciacion de la emergencia
+    port map(
+        clk => clk,
+        start =>aux1,
+        alarm1  => aux3,
+        alarma => alarma_final,
+        alarma_ME => aux5
+    );
+I_ME: MaqEstados -- Instanciacion de la máquina de estados 
+	port map(
+	    boton =>aux,
+	    clk => clk,
+	    start =>aux1,
+	    presencia => presencia,
+	    alarm3 => aux5,
+	    abrir_m => abrir_m,	   
+	    puerta_a => puerta_a,
+	    puerta_c => puerta_c,
+	    motor_subir => motor_subir,
+	    motor_bajar => motor_bajar,
+	    display1 => display11,
+	    display2 => display22,
+	    display3 => display33,
+	    display4 => display44
+	);
+I_display: Display -- Instaciacion de los displays 
+	port map(
+		display1 => display11,
+		display2 => display22,
+		display3 => display33,
+		display4 => display44,
+		clk => clk,
+		pantalla => salida_final,
+		control => control_salida
+	);
+end behavioral;
