@@ -6,21 +6,21 @@ end TOP_tb;
 architecture Behavioral of TOP_tb is
 COMPONENT Ascensor
     PORT(
-    boton	:IN STD_LOGIC_VECTOR(3 DOWNTO 0); --Botones en cada piso 
+    boton	:IN STD_LOGIC_VECTOR(3 DOWNTO 0); -- Botones en cada piso 
     clk,start	:IN STD_LOGIC; -- Boton de arranque
-    presencia	:IN STD_LOGIC; --Sensores  ,abierto,cerrado
-    alarm	:IN STD_LOGIC; --Bot�n de alarma
-    abrir_m	:IN STD_LOGIC; --Apertura y cierre
-    puerta_a,puerta_c,motor_subir,motor_bajar	:OUT STD_LOGIC; --Motor y puerta 
+    presencia	:IN STD_LOGIC; -- Sensores, abierto, cerrado
+    alarm	:IN STD_LOGIC; -- Botón de alarma
+    abrir_m	:IN STD_LOGIC; -- Apertura y cierre
+    puerta_a,puerta_c,motor_subir,motor_bajar	:OUT STD_LOGIC; -- Motor y puerta 
     alarma	:OUT STD_LOGIC; -- Luz emergencia 
-    salida_final : out  STD_LOGIC_VECTOR (7 downto 0);
+    salida_final : out  STD_LOGIC_VECTOR (7 downto 0); -- Vector 
     control_salida : out  STD_LOGIC_VECTOR (3 downto 0)
         );
 end component;
         signal presencia : std_logic := '0';
         signal clk : std_logic := '0';
         signal start : std_logic := '0';
-        signal alarm : STD_LOGIC := '0'; --Bot�n de alarma
+        signal alarm : STD_LOGIC := '0'; --Botón de alarma
         signal boton : std_logic_vector(3 downto 0) := (others => '0');
         signal abrir_m	: STD_LOGIC := '0';
         signal puerta_a : STD_LOGIC := '0';
@@ -34,7 +34,7 @@ begin
    uut: Ascensor PORT MAP (
         boton => boton,
 	    clk => clk,
-	    start =>start,
+	    start => start,
 	    presencia => presencia,
 	    alarm => alarm,
 	    abrir_m => abrir_m,
@@ -53,6 +53,8 @@ begin
 		clk <= '1';
 		wait for clk_period/2;
    end process;
+   -- El clock empieza en 0 y, tras esperar la mitad del período determinado, se coloca el 'clk' a 1. Se realiza un bucle constante de subidas y bajadas de pulso
+			
    ME_process: process
             begin
                 wait for 50 ns;
@@ -60,4 +62,6 @@ begin
                 wait for 50 ns;
                 boton <= "1000";            
    end process;
+   -- Espera un tiempo determinado de 50ns y, tras esto, 'star' pasa a valer 1. Tras otros 50ns después de haberse colocado en 1, 'boton' pasa a valer 1000 (ya que es un vector)
+
 end Behavioral;
