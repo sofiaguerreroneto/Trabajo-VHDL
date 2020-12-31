@@ -14,12 +14,14 @@ architecture Behavioral of display is
 	component multip4a1
 	generic(n: natural range 1 to 32:=8);
 	port(	disp1: in std_logic_vector (n - 1 downto 0);
-			disp2: in std_logic_vector (n - 1 downto 0);
-			disp3: in std_logic_vector (n - 1 downto 0);
-			disp4: in std_logic_vector (n - 1 downto 0);
-			est:	in	std_logic_vector(1 downto 0);
-			seg: out std_logic_vector (n -1 downto 0));
+		disp2: in std_logic_vector (n - 1 downto 0);
+		disp3: in std_logic_vector (n - 1 downto 0);
+		disp4: in std_logic_vector (n - 1 downto 0);
+		est:	in	std_logic_vector(1 downto 0);
+		seg: out std_logic_vector (n -1 downto 0));
 	end component;
+	-- El bloque 'multip4a1' tomará como entradas las 4 señales de 'display'
+	-- Luego devolverá un vector de 8 elementos
 	
 	COMPONENT decod2a4
 	PORT(
@@ -28,6 +30,9 @@ architecture Behavioral of display is
 		output : OUT std_logic_vector(3 downto 0)
 		);
 	END COMPONENT;
+	-- El bloque 'decod2a4' toma como entradas 'state' (almacenada en 'aux1')
+	-- Devolverá una variable de 4 componentes
+	
 	COMPONENT state_change
 	PORT(
 		clk_div : IN std_logic;          
@@ -47,7 +52,7 @@ for all: multip4a1 use entity work.multip4a1(Behavioral);
 for all: decod2a4 use entity work.decod2a4(Behavioral);
 for all: divisor_reloj use entity work.divisor_reloj(Behavioral);
 for all: state_change use entity work.state_change(Behavioral);
-	
+-- Se utilizan las librerías 'work' que contienen las unidades que se compilarán
 
 
 signal aux1: std_logic_vector(1 downto 0);
@@ -55,18 +60,18 @@ signal aux2: std_logic;
 begin
 --Instanciacion de los componentes del display
 I_multip4a1: multip4a1 PORT MAP(-- 3º.
-		disp1 => display1,
-		disp2 => display2,
-		disp3 => display3,
-		disp4 => display4,
-		est => aux1,
-		seg => pantalla
+		disp1 => display1, -- Al componente 1 del multiplexor 4 a 1 se le asigna el vector del display 1
+		disp2 => display2, -- Al componente 2 del multiplexor 4 a 1 se le asigna el vector del display 2
+		disp3 => display3, -- Al componente 3 del multiplexor 4 a 1 se le asigna el vector del display 3
+		disp4 => display4, -- Al componente 4 del multiplexor 4 a 1 se le asigna el vector del display 4
+		est => aux1, -- Al vector 'est' se le asigna a señal 'aux1' (vector de dos unidades)
+		seg => pantalla -- Lo mismo con 'seg', pero esta vez tiene como salida 'pantalla', la cual es puerto de 'multip4a1'
 	); 
 
 I_decod2a4: decod2a4 PORT MAP(-- 3º.
 		input => aux1,
 		en => '0',
-		output => control
+		output => control -- La variable que devuelve de 4 elementos
 	);
 	
 I_state_change: state_change PORT MAP( -- 2º.
