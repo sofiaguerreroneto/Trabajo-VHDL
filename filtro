@@ -3,16 +3,18 @@ use IEEE.STD_LOGIC_1164.ALL;
 entity filtro is
 	generic(n: integer range 0 to 2**5-1 := 8);
 	port(	entrada: in std_logic_vector(3 downto 0);
-			clk: in std_logic;
-			start : in std_logic;
-            alarm2 : in std_logic;
-            salida : out std_logic_vector(3 downto 0);
-            salida1 : out std_logic;
-			salida3 : out std_logic
+		clk: in std_logic;
+		start : in std_logic;
+           	alarm2 : in std_logic;
+           	salida : out std_logic_vector(3 downto 0);
+           	salida1 : out std_logic;
+		salida3 : out std_logic
 		);
 end filtro;
+
 architecture Behavioral of filtro is
---Definicion de los componentes por los que esta comformado el filtro de entradas
+-- Definicion de los componentes por los que esta conformado el filtro de entradas
+
 component antirrebote
 	port(
 			bot: in std_logic; 
@@ -20,12 +22,14 @@ component antirrebote
 			reset: in std_logic;
 			antirreb: out std_logic);
 end component;
+
 component flanco
 	port(
 			boton: in std_logic;
 			clk: in std_logic;
 			btn_out: out std_logic);
 end component;
+
 component divisor_reloj
 	generic(tope: integer range 0 to 2**26-1 := 150);
 	port(	clk, reset: in std_logic;
@@ -41,7 +45,10 @@ signal aux: std_logic_vector (entrada'range);
 signal aux1: std_logic;
 signal aux3: std_logic;
 begin
---Instanciacion de los filtros para las distintas entradas del ascensor
+
+-- Instanciacion de los filtros para las distintas entradas del ascensor
+-- Se utiliza un mapa de puertos ('port map') para definir la interconexión entre estas instancias
+	-- Reloj
 	I_clk: divisor_reloj -- 1º.
 		generic map (tope=> 500000)  
 		port map(
@@ -49,44 +56,65 @@ begin
 			reset => '0',
 			clk_dividido => p_i
 			);
-	--Start		
+	-- El mapa de puerto asigna el genérico 'tope' a la señal de reloj, con un valor muy alto 
+	-- A 'clk' se le asigna el propio 'clk', a 'reset' un valor nulo y a 'clk_dividido' la señal 'p_i'
+			
+	-- Start		
 	I_antirreboteStart: antirrebote port map(  -- 2º.
 			Bot => start,
-			clk_div=>p_i,
+			clk_div=> p_i,
 			reset=> '0',
 			antirreb => aux1
-			);			
+			);	
+	-- Se le pasan las entradas que se le habían pasado a filtro y a antirrebotes ('antirreb') le asigna una señal 'AUX', definida dentro del filtro
+	-- El 'reset' sigue estando a 0, y ahora la señal 'p_i' pasa a ser asignada a 'clk_div'. Para 'boton' se da como salida 'start'
+	-- 'aux1' recoge la entrada de 'start' tras salir de 'filtro' y luego la pasará a 'Máquina de estados'
 	I_flancoStart: flanco port map(   -- 3º.
 			boton => aux1,
 			clk => clk,
 			btn_out => salida1
 			);
+	-- Se le pasa como entrada 'clk'. La señal 'AUX' es la obtenida como salida en 'antirreboteStart'
+			
 	-- Alarm					
 	I_antirreboteAlarm: antirrebote port map(  -- 2º.
 			Bot => alarm2,
-			clk_div=>p_i,
+			clk_div=> p_i,
 			reset=> '0',
 			antirreb => aux3
 			);
+	-- De nuevo se le pasan entradas que se le pasaban a filtro: en este caso 'alarm2'
+	-- Se le sigue asignando la señal 'p_i' a 'clk_div' y a'reset' 0
+	-- 'antirrebo' tiene como salida una señal 'AUX', en este caso la 'aux3'
+	-- 'aux3' recoge la entrada de 'alarm' tras salir de 'filtro' y luego la pasará a 'Máquina de estados' y al 'bloque de emergencia'
 			
 	I_flancoAlarm: flanco port map(   -- 3º.
 			boton => aux3,
 			clk => clk,
 			btn_out => salida3
 			);
+	-- 'btn:out' es una salida de 'flanco', a la que se le asigna 'salida3', que es una salida de 'filtro'
+	-- A 'btn:out' se le da como salida 'salida3' cuando en 'start' se le daba 'salida1'
 	fil: for i IN entrada'range GENERATE
-	--Botones
+	
+	-- Botones
 	I_antirreboteBoton: antirrebote port map(  -- 2º.
 			Bot => entrada(i),
-			clk_div=>p_i,
+			clk_div=> p_i,
 			reset=> '0',
 			antirreb => aux(i)
-			);		
+			);
+	-- Se genera un bucle y a 'antirreb' se le asigna el 'AUX' correspodiente
+			
 	I_flanco: flanco port map(   -- 3º.
 			boton => aux(i),
 			clk => clk,
 			btn_out => salida(i)
 			);
 	end GENERATE;
+	
+	-- 'Divisor de reloj' sirve para dividir la frecuencia de reloj y así poder trabajar con ella
+	-- 'Antirrebotes' se encarga de que no haya errores en la activación de entradas
+	-- 'Flanco' comprueba el cambio en los valores de entrada 
 end Behavioral;
 
