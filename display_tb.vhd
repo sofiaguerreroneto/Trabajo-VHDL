@@ -39,22 +39,23 @@ BEGIN
 		clk <= '1';
 		wait for clk_period/2;
    end process;
-   -- De 0 a 1, comenzando en 0 y subiendo el flanco tras 10ns. Se da en bucle			
-			
    stim_proc: process
    begin		
-		wait for 40 ns;
-		display1<="00110001";--P
-		display2<="00110001";--P
-		display3<="00110001";--P
-		display4<="00110001";--P
-        	wait for 40 ns;
-		display1<="00111101";
-		display2<="00111101";
-		display3<="00111101";
-		display4<="00111101";
-      		wait;
-   -- Coloca los valores a los que debe estar cada display tras 40ns, y después de nuevo le da valores. NO es un bucle, ya que realiza la operación 2 veces
 
+        wait for 40 ns;
+		display1<="01111111";  --"."
+		display2<="01111111";  --"."
+		display3<="01111111";  --"."
+		display4<="01111111";  --"."
+		
+		wait for 40 ns;
+		display1<= "10001000"; -- A
+		display2<= "10000011"; -- b
+		display3<= "11000000"; -- 0
+		display4<= "10110000"; -- 3
+		
+
+      wait;
    end process;
 END;
+
